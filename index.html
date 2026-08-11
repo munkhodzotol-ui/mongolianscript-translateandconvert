@@ -38,7 +38,7 @@
     <p class="subtitle">Instant Cyrillic to Traditional Mongolian Script Converter</p>
 
     <label for="input">Cyrillic Input:</label>
-    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Монгол хэл сайхан)..."></textarea>
+    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийн сургуулиас)..."></textarea>
 
     <div class="output-header">
       <label>Traditional Mongolian Output:</label>
@@ -48,37 +48,67 @@
   </div>
 
   <script>
-    // 1. Direct dictionary mapping for frequent words & foreign loanwords
+    // 1. Root word dictionary
     const dictionary = {
       "монгол": "ᠮᠣᠩᠭᠣᠯ", "хэл": "ᠬᠡᠯᠡ", "сайхан": "ᠰᠠᠢᠬᠠᠨ",
       "хаан": "ᠬᠠᠭᠠᠨ", "сургууль": "ᠰᠤᠷᠭᠠᠭᠤᠯᠢ", "улс": "ᠤᠯᠤᠰ",
       "сайн": "ᠰᠠᠶᠢᠨ", "байна": "ᠪᠠᠶᠢᠨ᠎ᠠ", "уу": "ᠤᠤ",
       "би": "ᠪᠢ", "чи": "ᠴᠢ", "багш": "ᠪᠠᠭᠰᠢ", "ном": "ᠨᠣᠮ",
       "хүүхэд": "ᠬᠡᠦᠬᠡᠳ", "өдөр": "ᠥᠳᠥᠷ", "аав": "ᠠᠪᠤ", "ээж": "ᠡᠵᠡ",
-      // Common Foreign Loanwords (Galik Rules)
-      "кино": "ᠺᠢᠨᠣ",
-      "компьютер": "ᠺᠣᠮᠫᠢᠶᠦ᠋ᠲᠡᠷ",
-      "телефон": "ᠲᠡᠯᠡᠹᠣᠨ",
-      "америк": "ᠠᠮᠡᠷᠢᠺᠠ",
-      "россия": "ᠣᠷᠣᠰ",
-      "технологи": "ᠲᠡᠬᠡᠨᠣᠯᠣᠭᠢ",
-      "спорт": "ᠰᠫᠣᠷᠲ"
+      "кино": "ᠺᠢᠨᠣ", "компьютер": "ᠺᠣᠮᠫᠢᠶᠦ᠋ᠲᠡᠷ", "америк": "ᠠᠮᠡᠷᠢᠺᠠ"
     };
 
-    // 2. Character fallback rule engine including foreign letters
+    // 2. Cyrillic Suffix -> Traditional Mongolian Suffix (preceded by NNBSP U+202F)
+    const suffixes = [
+      { cyr: "аас", hudum: "\u202F\u1820\u182F\u1820" }, // -аас ( ᠠᠴᠠ)
+      { cyr: "ээс", hudum: "\u202F\u1821\u182F\u1820" }, // -ээс ( ᠡᠴᠡ)
+      { cyr: "оос", hudum: "\u202F\u1820\u182F\u1820" }, // -оос
+      { cyr: "өөс", hudum: "\u202F\u1821\u182F\u1820" }, // -өөс
+      { cyr: "аар", hudum: "\u202F\u1820\u1837\u1820" }, // -аар
+      { cyr: "ээр", hudum: "\u202F\u1821\u1837\u1820" }, // -ээр
+      { cyr: "оор", hudum: "\u202F\u1820\u1837\u1820" }, // -оор
+      { cyr: "өөр", hudum: "\u202F\u1821\u1837\u1820" }, // -өөр
+      { cyr: "тай", hudum: "\u202F\u1834\u1820\u1824" }, // -тай ( ᠲᠠᠢ)
+      { cyr: "тэй", hudum: "\u202F\u1834\u1821\u1824" }, // -тэй ( ᠲᠡᠢ)
+      { cyr: "той", hudum: "\u202F\u1834\u1820\u1824" }, // -той
+      { cyr: "ийн", hudum: "\u202F\u1836\u1824\u1829" }, // -ийн ( ᠶᠢᠨ)
+      { cyr: "ын",  hudum: "\u202F\u1824\u1829" },     // -ын  ( ᠤᠨ)
+      { cyr: "ийг", hudum: "\u202F\u1836\u1824\u182D" }, // -ийг ( ᠶᠢᠭ)
+      { cyr: "ыг",  hudum: "\u202F\u1824\u182D" },     // -ыг  ( ᠤᠭ)
+      { cyr: "д",   hudum: "\u202F\u1833\u1824" },     // -д   ( ᠳᠤ)
+      { cyr: "т",   hudum: "\u202F\u1834\u1824" }      // -т   ( ᠲᠤ)
+    ];
+
+    // 3. Fallback character mapping
     const charMap = {
       'а':'ᠠ','б':'ᠪ','в':'ᠸ','г':'ᠭ','д':'ᠳ','е':'ᠶᠡ','ё':'ᠶᠣ',
       'ж':'ᠵ','з':'ᠵ','и':'ᠢ','й':'ᠢ','к':'ᠺ','л':'ᠯ','м':'ᠮ',
       'н':'ᠨ','о':'ᠣ','ө':'ᠥ','п':'ᠫ','р':'ᠷ','с':'ᠰ','т':'ᠲ',
       'у':'ᠤ','ү':'ᠦ','ф':'ᠹ','х':'ᠬ','ц':'ᠴ','ч':'ᠴ','ш':'ᠱ',
-      'э':'ᠡ','ю':'ᠶᠦ','я':'ᠶᠠ',
-      'ы':'ᠢ', 'ь':'', 'ъ':'', 'щ':'ᠱ'
+      'э':'ᠡ','ю':'ᠶᠦ','я':'ᠶᠠ','ы':'ᠢ','ь':'','ъ':'','щ':'ᠱ'
     };
+
+    function convertByChar(str) {
+      return str.split('').map(char => charMap[char] || char).join('');
+    }
 
     function convertWord(word) {
       const clean = word.toLowerCase();
+      
+      // 1. Direct match
       if (dictionary[clean]) return dictionary[clean];
-      return clean.split('').map(char => charMap[char] || char).join('');
+
+      // 2. Suffix stripping & grammar matching
+      for (const s of suffixes) {
+        if (clean.endsWith(s.cyr) && clean.length > s.cyr.length) {
+          const stem = clean.slice(0, clean.length - s.cyr.length);
+          const stemHudum = dictionary[stem] || convertByChar(stem);
+          return stemHudum + s.hudum;
+        }
+      }
+
+      // 3. Phonetic character fallback
+      return convertByChar(clean);
     }
 
     function convertText(text) {
@@ -92,12 +122,10 @@
     const output = document.getElementById('output');
     const copyBtn = document.getElementById('copyBtn');
 
-    // Real-time conversion trigger
     input.addEventListener('input', () => {
       output.innerText = convertText(input.value);
     });
 
-    // Copy function
     copyBtn.addEventListener('click', () => {
       if (!output.innerText) return;
       navigator.clipboard.writeText(output.innerText);
