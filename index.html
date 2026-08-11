@@ -46,7 +46,7 @@
     <p class="subtitle">Instant Cyrillic to Traditional Mongolian Script Converter</p>
 
     <label for="input">Cyrillic Input:</label>
-    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, ирсэн)..."></textarea>
+    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, багшаа)..."></textarea>
 
     <div class="output-header">
       <label>Traditional Mongolian Output:</label>
@@ -81,11 +81,11 @@
       { cyr: "чүүл", hudum: NNBSP + "ᠴᠦᠦᠯ" },
       { cyr: "нар",  hudum: NNBSP + "ᠨᠠᠷ" },
 
-      // Reflexive Possessive (Өөрт хамаатуулах -аа⁴ - Attached with NNBSP)
-      { cyr: "аа", hudum: NNBSP + "ᠠ" },
-      { cyr: "ээ", hudum: NNBSP + "ᠡ" },
-      { cyr: "оо", hudum: NNBSP + "ᠠ" },
-      { cyr: "өө", hudum: NNBSP + "ᠡ" },
+      // Reflexive Possessive (Өөрт хамаатуулах -аа⁴ - Joined directly without NNBSP)
+      { cyr: "аа", hudum: "ᠠ" },
+      { cyr: "ээ", hudum: "ᠡ" },
+      { cyr: "оо", hudum: "ᠠ" },
+      { cyr: "өө", hudum: "ᠡ" },
 
       // Accusative (Заах - Attached with NNBSP)
       { cyr: "ийг", hudum: NNBSP + "ᠢ" },
