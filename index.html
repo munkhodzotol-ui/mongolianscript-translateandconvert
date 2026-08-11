@@ -46,7 +46,7 @@
     <p class="subtitle">Instant Cyrillic to Traditional Mongolian Script Converter</p>
 
     <label for="input">Cyrillic Input:</label>
-    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, хаан, хэл)..."></textarea>
+    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, хаан, бат)..."></textarea>
 
     <div class="output-header">
       <label>Traditional Mongolian Output:</label>
@@ -139,11 +139,9 @@
 
     // Vowel Harmony Scanner (Эр / Эм үг тодорхойлох)
     function getWordGender(word) {
-      // Masculine vowels: а, о, у, я, ё
       if (/[аоуяё]/i.test(word)) {
         return 'masculine';
       }
-      // Default to feminine for э, ө, ү, е or neutral words
       return 'feminine';
     }
 
@@ -156,24 +154,23 @@
         const char = chars[i];
 
         // Rule for "Х" (ХА, ХА ҮСЭГ Sheet):
-        // Masculine (Эр): Uses Hook/Belly ᠬ (\u182A)
-        // Feminine (Эм): Uses Female Loop ᠭ (\u182D - same loop glyph as feminine Г)
+        // Masculine (Эр): Uses Hook ᠬ (\u182A)
+        // Feminine (Эм): Uses Female Loop ᠭ (\u182D)
         if (char === 'х') {
           result += (gender === 'masculine') ? '\u182A' : '\u182D';
           continue;
         }
 
         // Rule for "Г" (ГА, ХА ҮСЭГ Sheet):
-        // Standard GA \u182D automatically handles dotted (masculine) vs dotless (feminine)
         if (char === 'г') {
           result += '\u182D';
           continue;
         }
 
-        // Rule for Non-Final Consonants (Дэвсгэрлэдэггүй үсэг - "Т", "Ш"):
-        // If "т" or "ш" lands at the absolute end of an unrecognised fallback word,
-        // attach an implicit "и" (\u1822) to prevent illegal final positioning.
-        if ((char === 'т' || char === 'ш') && i === chars.length - 1) {
+        // Rule for Non-Final Consonants (Дэвсгэрлэдэггүй үсэг - "Т", "Ш", "Д"):
+        // Appends an implicit "и" (\u1822) at the end of fallback words to force
+        // "т", "ш", and "д" into their correct connected medial shapes.
+        if ((char === 'т' || char === 'ш' || char === 'д') && i === chars.length - 1) {
           const mainChar = charMap[char] || char;
           result += mainChar + '\u1822';
           continue;
@@ -269,5 +266,7 @@
     });
   </script>
 
+</body>
+</html>
 </body>
 </html>
