@@ -46,7 +46,7 @@
     <p class="subtitle">Instant Cyrillic to Traditional Mongolian Script Converter</p>
 
     <label for="input">Cyrillic Input:</label>
-    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, аавыг, сургуулиас)..."></textarea>
+    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, ирсэн)..."></textarea>
 
     <div class="output-header">
       <label>Traditional Mongolian Output:</label>
@@ -66,56 +66,69 @@
       "сайн": "ᠰᠠᠶᠢᠨ", "байна": "ᠪᠠᠶᠢᠨ᠎ᠠ", "уу": "ᠤᠤ",
       "би": "ᠪᠢ", "чи": "ᠴᠢ", "багш": "ᠪᠠᠭᠰᠢ", "ном": "ᠨᠣᠮ",
       "хүүхэд": "ᠬᠡᠦᠬᠡᠳ", "өдөр": "ᠥᠳᠥᠷ", "аав": "ᠠᠪᠤ", "ээж": "ᠡᠵᠡ",
-      "кино": "ᠺᠢᠨᠣ", "компьютер": "ᠺᠣᠮᠫᠢᠶᠦ᠋ᠲᠡᠷ", "америк": "ᠠᠮᠡᠷᠢᠺᠠ"
+      "кино": "ᠺᠢᠨᠣ", "компьютер": "ᠺᠣᠮᠫᠢᠶᠦ᠋ᠲᠡᠷ", "америк": "ᠠᠮᠡᠷᠢᠺᠠ",
+      "ирэх": "ᠢᠷᠡᠬᠦ", "явах": "ᠶᠠᠪᠤᠬᠤ", "унших": "ᠤᠩᠰᠢᠬᠤ"
     };
 
     const NNBSP = "\u202F"; // Narrow Non-Break Space (U+202F) for medial glyph joining
 
     // 2. Direct Suffix Mapping Engine
     const suffixRules = [
-      // Plurals (Олон тооны дагавар)
+      // Plurals (Олон тооны дагавар - Attached with NNBSP)
       { cyr: "чууд", hudum: NNBSP + "ᠴᠤᠤᠳ" },
       { cyr: "чүүд", hudum: NNBSP + "ᠴᠦᠦᠳ" },
       { cyr: "чуул", hudum: NNBSP + "ᠴᠤᠤᠯ" },
       { cyr: "чүүл", hudum: NNBSP + "ᠴᠦᠦᠯ" },
       { cyr: "нар",  hudum: NNBSP + "ᠨᠠᠷ" },
 
-      // Accusative (Заах)
+      // Reflexive Possessive (Өөрт хамаатуулах -аа⁴ - Attached with NNBSP)
+      { cyr: "аа", hudum: NNBSP + "ᠠ" },
+      { cyr: "ээ", hudum: NNBSP + "ᠡ" },
+      { cyr: "оо", hudum: NNBSP + "ᠠ" },
+      { cyr: "өө", hudum: NNBSP + "ᠡ" },
+
+      // Accusative (Заах - Attached with NNBSP)
       { cyr: "ийг", hudum: NNBSP + "ᠢ" },
       { cyr: "ыг",  hudum: NNBSP + "ᠢ" },
       { cyr: "г",   hudum: NNBSP + "ᠶᠢ" },
 
-      // Ablative (Гарах)
+      // Ablative (Гарах - Attached with NNBSP)
       { cyr: "аас", hudum: NNBSP + "ᠠᠴᠠ" },
       { cyr: "ээс", hudum: NNBSP + "ᠡᠴᠡ" },
       { cyr: "оос", hudum: NNBSP + "ᠠᠴᠠ" },
       { cyr: "өөс", hudum: NNBSP + "ᠡᠴᠡ" },
 
-      // Instrumental (Үйлдэх)
+      // Instrumental (Үйлдэх - Attached with NNBSP)
       { cyr: "аар", hudum: NNBSP + "ᠪᠠᠷ" },
       { cyr: "ээр", hudum: NNBSP + "ᠢᠶᠡᠷ" },
       { cyr: "оор", hudum: NNBSP + "ᠪᠠᠷ" },
       { cyr: "өөр", hudum: NNBSP + "ᠢᠶᠡᠷ" },
 
-      // Comitative (Хамтрах)
+      // Comitative (Хамтрах - Attached with NNBSP)
       { cyr: "тай", hudum: NNBSP + "ᠲᠠᠢ" },
       { cyr: "тэй", hudum: NNBSP + "ᠲᠡᠢ" },
       { cyr: "той", hudum: NNBSP + "ᠲᠠᠢ" },
 
-      // Directive (Чиглэх)
+      // Directive (Чиглэх - Attached with NNBSP)
       { cyr: "руу", hudum: NNBSP + "ᠷᠤᠭᠤ" },
       { cyr: "рүү", hudum: NNBSP + "ᠷᠦᠭᠦ" },
 
-      // Genitive (Харьяалах)
+      // Genitive (Харьяалах - Attached with NNBSP)
       { cyr: "ийн", hudum: NNBSP + "ᠶᠢᠨ" },
       { cyr: "ын",  hudum: NNBSP + "ᠤᠨ" },
 
-      // Dative-Locative (Өгөх орших)
+      // Dative-Locative (Өгөх орших - Attached with NNBSP)
       { cyr: "д",   hudum: NNBSP + "ᠳᠤ" },
-      { cyr: "т",   hudum: NNBSP + "ᠲᠤ" }
+      { cyr: "т",   hudum: NNBSP + "ᠲᠤ" },
+
+      // Past Tense Verbs (Шууд залгах - Joined directly without NNBSP)
+      { cyr: "сан", hudum: "ᠭᠰᠠᠨ" },
+      { cyr: "сэн", hudum: "ᠭᠰᠡᠨ" },
+      { cyr: "сон", hudum: "ᠭᠰᠠᠨ" },
+      { cyr: "сөн", hudum: "ᠭᠰᠡᠨ" }
     ];
 
-    // Fallback Character Mapping
+    // Fallback Character Mapping (ь and ъ return empty string)
     const charMap = {
       'а':'ᠠ','б':'ᠪ','в':'ᠸ','г':'ᠭ','д':'ᠳ','е':'ᠶᠡ','ё':'ᠶᠣ',
       'ж':'ᠵ','з':'ᠵ','и':'ᠢ','й':'ᠢ','к':'ᠺ','л':'ᠯ','м':'ᠮ',
@@ -125,7 +138,7 @@
     };
 
     function convertByChar(str) {
-      return str.split('').map(char => charMap[char] || char).join('');
+      return str.split('').map(char => (char in charMap ? charMap[char] : char)).join('');
     }
 
     function convertWord(word) {
@@ -138,7 +151,22 @@
       for (const rule of suffixRules) {
         if (clean.endsWith(rule.cyr) && clean.length > rule.cyr.length) {
           const stem = clean.slice(0, clean.length - rule.cyr.length);
-          const stemHudum = dictionary[stem] || convertByChar(stem);
+          
+          let stemHudum = dictionary[stem];
+
+          // Soft-Sign Recovery: e.g. "сургуули" -> "сургууль"
+          if (!stemHudum && stem.endsWith("и")) {
+            const softStem = stem.slice(0, -1) + "ь";
+            if (dictionary[softStem]) {
+              stemHudum = dictionary[softStem];
+            }
+          }
+
+          // Character fallback if stem still not found in dictionary
+          if (!stemHudum) {
+            stemHudum = convertByChar(stem);
+          }
+
           return stemHudum + rule.hudum;
         }
       }
