@@ -10,6 +10,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mongolian&display=swap" rel="stylesheet">
 
+  <!-- html2canvas Library for Exporting DOM elements to PNG -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #f8fafc; color: #0f172a; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
@@ -21,8 +24,13 @@
     textarea:focus { border-color: #2563eb; }
     
     .output-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .copy-btn { background: #2563eb; color: #ffffff; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    .copy-btn:hover { background: #1d4ed8; }
+    .btn-group { display: flex; gap: 8px; }
+    
+    .action-btn { background: #2563eb; color: #ffffff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    .action-btn:hover { background: #1d4ed8; }
+    
+    .download-btn { background: #059669; }
+    .download-btn:hover { background: #047857; }
     
     .output-box {
       width: 100%; height: 260px; border: 1.5px solid #10b981; background: #f0fdf4; border-radius: 10px; padding: 16px; overflow-x: auto;
@@ -38,11 +46,14 @@
     <p class="subtitle">Instant Cyrillic to Traditional Mongolian Script Converter</p>
 
     <label for="input">Cyrillic Input:</label>
-    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийн сургуулиас)..."></textarea>
+    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, аавыг, сургуулиас)..."></textarea>
 
     <div class="output-header">
       <label>Traditional Mongolian Output:</label>
-      <button class="copy-btn" id="copyBtn">Copy Script</button>
+      <div class="btn-group">
+        <button class="action-btn" id="copyBtn">Copy Script</button>
+        <button class="action-btn download-btn" id="downloadBtn">Download PNG</button>
+      </div>
     </div>
     <div id="output" class="output-box"></div>
   </div>
@@ -58,28 +69,35 @@
       "кино": "ᠺᠢᠨᠣ", "компьютер": "ᠺᠣᠮᠫᠢᠶᠦ᠋ᠲᠡᠷ", "америк": "ᠠᠮᠡᠷᠢᠺᠠ"
     };
 
-    // 2. Cyrillic Suffix -> Traditional Mongolian Suffix (preceded by NNBSP U+202F)
-    const suffixes = [
-      { cyr: "аас", hudum: "\u202F\u1820\u182F\u1820" }, // -аас ( ᠠᠴᠠ)
-      { cyr: "ээс", hudum: "\u202F\u1821\u182F\u1820" }, // -ээс ( ᠡᠴᠡ)
-      { cyr: "оос", hudum: "\u202F\u1820\u182F\u1820" }, // -оос
-      { cyr: "өөс", hudum: "\u202F\u1821\u182F\u1820" }, // -өөс
-      { cyr: "аар", hudum: "\u202F\u1820\u1837\u1820" }, // -аар
-      { cyr: "ээр", hudum: "\u202F\u1821\u1837\u1820" }, // -ээр
-      { cyr: "оор", hudum: "\u202F\u1820\u1837\u1820" }, // -оор
-      { cyr: "өөр", hudum: "\u202F\u1821\u1837\u1820" }, // -өөр
-      { cyr: "тай", hudum: "\u202F\u1834\u1820\u1824" }, // -тай ( ᠲᠠᠢ)
-      { cyr: "тэй", hudum: "\u202F\u1834\u1821\u1824" }, // -тэй ( ᠲᠡᠢ)
-      { cyr: "той", hudum: "\u202F\u1834\u1820\u1824" }, // -той
-      { cyr: "ийн", hudum: "\u202F\u1836\u1824\u1829" }, // -ийн ( ᠶᠢᠨ)
-      { cyr: "ын",  hudum: "\u202F\u1824\u1829" },     // -ын  ( ᠤᠨ)
-      { cyr: "ийг", hudum: "\u202F\u1836\u1824\u182D" }, // -ийг ( ᠶᠢᠭ)
-      { cyr: "ыг",  hudum: "\u202F\u1824\u182D" },     // -ыг  ( ᠤᠭ)
-      { cyr: "д",   hudum: "\u202F\u1833\u1824" },     // -д   ( ᠳᠤ)
-      { cyr: "т",   hudum: "\u202F\u1834\u1824" }      // -т   ( ᠲᠤ)
+    const vowels = new Set(['а', 'э', 'и', 'о', 'ө', 'у', 'ү', 'я', 'е', 'ё', 'ю', 'ы']);
+    const NNBSP = "\u202F";
+
+    // 2. Grammar Suffix Engine
+    const suffixRules = [
+      { cyr: "чууд", hudum: NNBSP + "ᠴᠤᠤᠳ" },
+      { cyr: "чүүд", hudum: NNBSP + "ᠴᠦᠦᠳ" },
+      { cyr: "чуул", hudum: NNBSP + "ᠴᠤᠤᠯ" },
+      { cyr: "чүүл", hudum: NNBSP + "ᠴᠦᠦᠯ" },
+      { cyr: "нар",  hudum: NNBSP + "ᠨᠠᠷ" },
+      { cyr: "аас", hudum: NNBSP + "ᠠᠴᠠ" },
+      { cyr: "ээс", hudum: NNBSP + "ᠡᠴᠡ" },
+      { cyr: "оос", hudum: NNBSP + "ᠠᠴᠠ" },
+      { cyr: "өөс", hudum: NNBSP + "ᠡᠴᠡ" },
+      { cyr: "аар", hudum: NNBSP + "ᠪᠠᠷ" },
+      { cyr: "ээр", hudum: NNBSP + "ᠢᠶᠡᠷ" },
+      { cyr: "оор", hudum: NNBSP + "ᠪᠠᠷ" },
+      { cyr: "өөр", hudum: NNBSP + "ᠢᠶᠡᠷ" },
+      { cyr: "тай", hudum: NNBSP + "ᠲᠠᠢ" },
+      { cyr: "тэй", hudum: NNBSP + "ᠲᠡᠢ" },
+      { cyr: "той", hudum: NNBSP + "ᠲᠠᠢ" },
+      { cyr: "руу", hudum: NNBSP + "ᠷᠤᠭᠤ" },
+      { cyr: "рүү", hudum: NNBSP + "ᠷᠦᠭᠦ" },
+      { cyr: "ийн", hudum: NNBSP + "ᠶᠢᠨ" },
+      { cyr: "ын",  hudum: NNBSP + "ᠤᠨ" },
+      { cyr: "д",   hudum: NNBSP + "ᠳᠤ" },
+      { cyr: "т",   hudum: NNBSP + "ᠲᠤ" }
     ];
 
-    // 3. Fallback character mapping
     const charMap = {
       'а':'ᠠ','б':'ᠪ','в':'ᠸ','г':'ᠭ','д':'ᠳ','е':'ᠶᠡ','ё':'ᠶᠣ',
       'ж':'ᠵ','з':'ᠵ','и':'ᠢ','й':'ᠢ','к':'ᠺ','л':'ᠯ','м':'ᠮ',
@@ -94,20 +112,38 @@
 
     function convertWord(word) {
       const clean = word.toLowerCase();
-      
-      // 1. Direct match
+
       if (dictionary[clean]) return dictionary[clean];
 
-      // 2. Suffix stripping & grammar matching
-      for (const s of suffixes) {
-        if (clean.endsWith(s.cyr) && clean.length > s.cyr.length) {
-          const stem = clean.slice(0, clean.length - s.cyr.length);
+      // Accusative Case Rules
+      if (clean.endsWith("г") && clean.length > 1) {
+        const stem = clean.slice(0, -1);
+        const lastChar = stem.slice(-1);
+        if (!vowels.has(lastChar)) {
           const stemHudum = dictionary[stem] || convertByChar(stem);
-          return stemHudum + s.hudum;
+          return stemHudum + NNBSP + "ᠶᠢ";
         }
       }
 
-      // 3. Phonetic character fallback
+      if ((clean.endsWith("ыг") || clean.endsWith("ийг")) && clean.length > 3) {
+        const cutLen = clean.endsWith("ийг") ? 3 : 2;
+        const stem = clean.slice(0, clean.length - cutLen);
+        const lastChar = stem.slice(-1);
+        if (vowels.has(lastChar)) {
+          const stemHudum = dictionary[stem] || convertByChar(stem);
+          return stemHudum + NNBSP + "ᠢ";
+        }
+      }
+
+      // General Suffix Rules
+      for (const rule of suffixRules) {
+        if (clean.endsWith(rule.cyr) && clean.length > rule.cyr.length) {
+          const stem = clean.slice(0, clean.length - rule.cyr.length);
+          const stemHudum = dictionary[stem] || convertByChar(stem);
+          return stemHudum + rule.hudum;
+        }
+      }
+
       return convertByChar(clean);
     }
 
@@ -121,6 +157,7 @@
     const input = document.getElementById('input');
     const output = document.getElementById('output');
     const copyBtn = document.getElementById('copyBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
 
     input.addEventListener('input', () => {
       output.innerText = convertText(input.value);
@@ -131,6 +168,27 @@
       navigator.clipboard.writeText(output.innerText);
       copyBtn.innerText = "Copied!";
       setTimeout(() => copyBtn.innerText = "Copy Script", 1500);
+    });
+
+    // PNG Image Export Logic
+    downloadBtn.addEventListener('click', () => {
+      if (!output.innerText.trim()) return;
+
+      downloadBtn.innerText = "Generating...";
+
+      html2canvas(output, {
+        backgroundColor: '#f0fdf4',
+        scale: 2 // High DPI resolution for clear vertical script
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'mongolian-script.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        downloadBtn.innerText = "Download PNG";
+      }).catch(err => {
+        console.error('Image export failed:', err);
+        downloadBtn.innerText = "Download PNG";
+      });
     });
   </script>
 
