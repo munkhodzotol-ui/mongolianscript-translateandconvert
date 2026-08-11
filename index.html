@@ -46,7 +46,7 @@
     <p class="subtitle">Instant Cyrillic to Traditional Mongolian Script Converter</p>
 
     <label for="input">Cyrillic Input:</label>
-    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, багшаа)..."></textarea>
+    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, хаан, хэл)..."></textarea>
 
     <div class="output-header">
       <label>Traditional Mongolian Output:</label>
@@ -70,7 +70,7 @@
       "ирэх": "ᠢᠷᠡᠬᠦ", "явах": "ᠶᠠᠪᠤᠬᠤ", "унших": "ᠤᠩᠰᠢᠬᠤ"
     };
 
-    const NNBSP = "\u202F"; // Narrow Non-Break Space (U+202F) for medial glyph joining
+    const NNBSP = "\u202F"; // Narrow Non-Break Space (U+202F) for suffix joining
 
     // 2. Direct Suffix Mapping Engine
     const suffixRules = [
@@ -128,7 +128,7 @@
       { cyr: "сөн", hudum: "ᠭᠰᠡᠨ" }
     ];
 
-    // Fallback Character Mapping (ь and ъ return empty string)
+    // 3. Fallback Character Mapping Table
     const charMap = {
       'а':'ᠠ','б':'ᠪ','в':'ᠸ','г':'ᠭ','д':'ᠳ','е':'ᠶᠡ','ё':'ᠶᠣ',
       'ж':'ᠵ','з':'ᠵ','и':'ᠢ','й':'ᠢ','к':'ᠺ','л':'ᠯ','м':'ᠮ',
@@ -137,8 +137,56 @@
       'э':'ᠡ','ю':'ᠶᠦ','я':'ᠶᠠ','ы':'ᠢ','ь':'','ъ':'','щ':'ᠱ'
     };
 
-    function convertByChar(str) {
-      return str.split('').map(char => (char in charMap ? charMap[char] : char)).join('');
+    // Vowel Harmony Scanner (Эр / Эм үг тодорхойлох)
+    function getWordGender(word) {
+      // Masculine vowels: а, о, у, я, ё
+      if (/[аоуяё]/i.test(word)) {
+        return 'masculine';
+      }
+      // Default to feminine for э, ө, ү, е or neutral words
+      return 'feminine';
+    }
+
+    // Gender & Syllable-Aware Fallback Converter
+    function convertByChar(str, gender) {
+      let result = '';
+      const chars = str.split('');
+
+      for (let i = 0; i < chars.length; i++) {
+        const char = chars[i];
+
+        // Rule for "Х" (ХА, ХА ҮСЭГ Sheet):
+        // Masculine (Эр): Uses Hook/Belly ᠬ (\u182A)
+        // Feminine (Эм): Uses Female Loop ᠭ (\u182D - same loop glyph as feminine Г)
+        if (char === 'х') {
+          result += (gender === 'masculine') ? '\u182A' : '\u182D';
+          continue;
+        }
+
+        // Rule for "Г" (ГА, ХА ҮСЭГ Sheet):
+        // Standard GA \u182D automatically handles dotted (masculine) vs dotless (feminine)
+        if (char === 'г') {
+          result += '\u182D';
+          continue;
+        }
+
+        // Rule for Non-Final Consonants (Дэвсгэрлэдэггүй үсэг - "Т", "Ш"):
+        // If "т" or "ш" lands at the absolute end of an unrecognised fallback word,
+        // attach an implicit "и" (\u1822) to prevent illegal final positioning.
+        if ((char === 'т' || char === 'ш') && i === chars.length - 1) {
+          const mainChar = charMap[char] || char;
+          result += mainChar + '\u1822';
+          continue;
+        }
+
+        // Standard character fallback mapping
+        if (char in charMap) {
+          result += charMap[char];
+        } else {
+          result += char;
+        }
+      }
+      return result;
     }
 
     function convertWord(word) {
@@ -146,6 +194,9 @@
 
       // 1. Exact Dictionary Match
       if (dictionary[clean]) return dictionary[clean];
+
+      // Detect word gender (Masculine vs Feminine)
+      const gender = getWordGender(clean);
 
       // 2. Suffix Stripping Match
       for (const rule of suffixRules) {
@@ -162,17 +213,17 @@
             }
           }
 
-          // Character fallback if stem still not found in dictionary
+          // Character fallback with gender logic if stem is not in dictionary
           if (!stemHudum) {
-            stemHudum = convertByChar(stem);
+            stemHudum = convertByChar(stem, gender);
           }
 
           return stemHudum + rule.hudum;
         }
       }
 
-      // 3. Fallback Character Matching
-      return convertByChar(clean);
+      // 3. Fallback Character Matching with Gender Context
+      return convertByChar(clean, gender);
     }
 
     function convertText(text) {
