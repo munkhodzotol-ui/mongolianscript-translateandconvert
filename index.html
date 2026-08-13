@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MB-Bridge | Instant Mongolian Script Converter</title>
   
-  <!-- Noto Sans Mongolian Font for Vertical Text Rendering -->
+  <!-- Noto Sans Mongolian Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Mongolian&display=swap" rel="stylesheet">
 
-  <!-- html2canvas Library for Exporting DOM elements to PNG -->
+  <!-- html2canvas Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -18,7 +18,8 @@
     body { background: #f8fafc; color: #0f172a; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
     .container { width: 100%; max-width: 600px; background: #ffffff; padding: 24px; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); }
     h1 { font-size: 1.6rem; font-weight: 700; text-align: center; margin-bottom: 4px; color: #1e293b; }
-    .subtitle { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 24px; }
+    .subtitle { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 12px; }
+    .status-badge { text-align: center; font-size: 0.75rem; margin-bottom: 20px; font-weight: 600; color: #059669; }
     label { font-size: 0.85rem; font-weight: 600; color: #334155; display: block; margin-bottom: 8px; }
     textarea { width: 100%; height: 110px; padding: 12px; font-size: 1rem; border: 1.5px solid #cbd5e1; border-radius: 10px; margin-bottom: 20px; resize: none; outline: none; transition: border-color 0.2s; }
     textarea:focus { border-color: #2563eb; }
@@ -44,9 +45,10 @@
   <div class="container">
     <h1>MB-Bridge</h1>
     <p class="subtitle">Instant Cyrillic to Traditional Mongolian Script Converter</p>
+    <div id="status" class="status-badge">⏳ Loading 12,000+ Word Dictionary...</div>
 
     <label for="input">Cyrillic Input:</label>
-    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу (д.н. Багшийг, сургуулиас, хаан, бат)..."></textarea>
+    <textarea id="input" placeholder="Бичвэрээ энд оруулна уу..."></textarea>
 
     <div class="output-header">
       <label>Traditional Mongolian Output:</label>
@@ -59,76 +61,63 @@
   </div>
 
   <script>
-    // 1. Root word dictionary
-    const dictionary = {
-      "монгол": "ᠮᠣᠩᠭᠣᠯ", "хэл": "ᠬᠡᠯᠡ", "сайхан": "ᠰᠠᠢᠬᠠᠨ",
-      "хаан": "ᠬᠠᠭᠠᠨ", "сургууль": "ᠰᠤᠷᠭᠠᠭᠤᠯᠢ", "улс": "ᠤᠯᠤᠰ",
-      "сайн": "ᠰᠠᠶᠢᠨ", "байна": "ᠪᠠᠶᠢᠨ᠎ᠠ", "уу": "ᠤᠤ",
-      "би": "ᠪᠢ", "чи": "ᠴᠢ", "багш": "ᠪᠠᠭᠰᠢ", "ном": "ᠨᠣᠮ",
-      "хүүхэд": "ᠬᠡᠦᠬᠡᠳ", "өдөр": "ᠥᠳᠥᠷ", "аав": "ᠠᠪᠤ", "ээж": "ᠡᠵᠡ",
-      "кино": "ᠺᠢᠨᠣ", "компьютер": "ᠺᠣᠮᠫᠢᠶᠦ᠋ᠲᠡᠷ", "америк": "ᠠᠮᠡᠷᠢᠺᠠ",
-      "ирэх": "ᠢᠷᠡᠬᠦ", "явах": "ᠶᠠᠪᠤᠬᠤ", "унших": "ᠤᠩᠰᠢᠬᠤ"
-    };
+    let dictionary = {};
 
-    const NNBSP = "\u202F"; // Narrow Non-Break Space (U+202F) for suffix joining
+    async function loadDictionary() {
+      const statusEl = document.getElementById('status');
+      try {
+        const response = await fetch('./dictionary_clean.json');
+        if (!response.ok) throw new Error("Could not find dictionary_clean.json");
+        dictionary = await response.json();
+        const wordCount = Object.keys(dictionary).length.toLocaleString();
+        statusEl.innerText = `✓ Loaded ${wordCount} Dictionary Words`;
+      } catch (err) {
+        console.warn("Local fetch restricted or file missing. Using fallback rule engine.", err);
+        statusEl.innerText = "⚠️ Running on Fallback Rule Engine";
+        statusEl.style.color = "#d97706";
+      }
+    }
 
-    // 2. Direct Suffix Mapping Engine
+    loadDictionary();
+
+    const NNBSP = "\u202F"; 
+
     const suffixRules = [
-      // Plurals (Олон тооны дагавар - Attached with NNBSP)
       { cyr: "чууд", hudum: NNBSP + "ᠴᠤᠤᠳ" },
       { cyr: "чүүд", hudum: NNBSP + "ᠴᠦᠦᠳ" },
       { cyr: "чуул", hudum: NNBSP + "ᠴᠤᠤᠯ" },
       { cyr: "чүүл", hudum: NNBSP + "ᠴᠦᠦᠯ" },
       { cyr: "нар",  hudum: NNBSP + "ᠨᠠᠷ" },
-
-      // Reflexive Possessive (Өөрт хамаатуулах -аа⁴ - Joined directly without NNBSP)
       { cyr: "аа", hudum: "ᠠ" },
       { cyr: "ээ", hudum: "ᠡ" },
       { cyr: "оо", hudum: "ᠠ" },
       { cyr: "өө", hudum: "ᠡ" },
-
-      // Accusative (Заах - Attached with NNBSP)
       { cyr: "ийг", hudum: NNBSP + "ᠢ" },
       { cyr: "ыг",  hudum: NNBSP + "ᠢ" },
       { cyr: "г",   hudum: NNBSP + "ᠶᠢ" },
-
-      // Ablative (Гарах - Attached with NNBSP)
       { cyr: "аас", hudum: NNBSP + "ᠠᠴᠠ" },
       { cyr: "ээс", hudum: NNBSP + "ᠡᠴᠡ" },
       { cyr: "оос", hudum: NNBSP + "ᠠᠴᠠ" },
       { cyr: "өөс", hudum: NNBSP + "ᠡᠴᠡ" },
-
-      // Instrumental (Үйлдэх - Attached with NNBSP)
       { cyr: "аар", hudum: NNBSP + "ᠪᠠᠷ" },
       { cyr: "ээр", hudum: NNBSP + "ᠢᠶᠡᠷ" },
       { cyr: "оор", hudum: NNBSP + "ᠪᠠᠷ" },
       { cyr: "өөр", hudum: NNBSP + "ᠢᠶᠡᠷ" },
-
-      // Comitative (Хамтрах - Attached with NNBSP)
       { cyr: "тай", hudum: NNBSP + "ᠲᠠᠢ" },
       { cyr: "тэй", hudum: NNBSP + "ᠲᠡᠢ" },
       { cyr: "той", hudum: NNBSP + "ᠲᠠᠢ" },
-
-      // Directive (Чиглэх - Attached with NNBSP)
       { cyr: "руу", hudum: NNBSP + "ᠷᠤᠭᠤ" },
       { cyr: "рүү", hudum: NNBSP + "ᠷᠦᠭᠦ" },
-
-      // Genitive (Харьяалах - Attached with NNBSP)
       { cyr: "ийн", hudum: NNBSP + "ᠶᠢᠨ" },
       { cyr: "ын",  hudum: NNBSP + "ᠤᠨ" },
-
-      // Dative-Locative (Өгөх орших - Attached with NNBSP)
       { cyr: "д",   hudum: NNBSP + "ᠳᠤ" },
       { cyr: "т",   hudum: NNBSP + "ᠲᠤ" },
-
-      // Past Tense Verbs (Шууд залгах - Joined directly without NNBSP)
       { cyr: "сан", hudum: "ᠭᠰᠠᠨ" },
       { cyr: "сэн", hudum: "ᠭᠰᠡᠨ" },
       { cyr: "сон", hudum: "ᠭᠰᠠᠨ" },
       { cyr: "сөн", hudum: "ᠭᠰᠡᠨ" }
     ];
 
-    // 3. Fallback Character Mapping Table
     const charMap = {
       'а':'ᠠ','б':'ᠪ','в':'ᠸ','г':'ᠭ','д':'ᠳ','е':'ᠶᠡ','ё':'ᠶᠣ',
       'ж':'ᠵ','з':'ᠵ','и':'ᠢ','й':'ᠢ','к':'ᠺ','л':'ᠯ','м':'ᠮ',
@@ -137,51 +126,28 @@
       'э':'ᠡ','ю':'ᠶᠦ','я':'ᠶᠠ','ы':'ᠢ','ь':'','ъ':'','щ':'ᠱ'
     };
 
-    // Vowel Harmony Scanner (Эр / Эм үг тодорхойлох)
     function getWordGender(word) {
-      if (/[аоуяё]/i.test(word)) {
-        return 'masculine';
-      }
-      return 'feminine';
+      return /[аоуяё]/i.test(word) ? 'masculine' : 'feminine';
     }
 
-    // Gender & Syllable-Aware Fallback Converter
     function convertByChar(str, gender) {
       let result = '';
       const chars = str.split('');
-
       for (let i = 0; i < chars.length; i++) {
         const char = chars[i];
-
-        // Rule for "Х" (ХА, ХА ҮСЭГ Sheet):
-        // Masculine (Эр): Uses Hook ᠬ (\u182A)
-        // Feminine (Эм): Uses Female Loop ᠭ (\u182D)
         if (char === 'х') {
           result += (gender === 'masculine') ? '\u182A' : '\u182D';
           continue;
         }
-
-        // Rule for "Г" (ГА, ХА ҮСЭГ Sheet):
         if (char === 'г') {
           result += '\u182D';
           continue;
         }
-
-        // Rule for Non-Final Consonants (Дэвсгэрлэдэггүй үсэг - "Т", "Ш", "Д"):
-        // Appends an implicit "и" (\u1822) at the end of fallback words to force
-        // "т", "ш", and "д" into their correct connected medial shapes.
         if ((char === 'т' || char === 'ш' || char === 'д') && i === chars.length - 1) {
-          const mainChar = charMap[char] || char;
-          result += mainChar + '\u1822';
+          result += (charMap[char] || char) + '\u1822';
           continue;
         }
-
-        // Standard character fallback mapping
-        if (char in charMap) {
-          result += charMap[char];
-        } else {
-          result += char;
-        }
+        result += charMap[char] || char;
       }
       return result;
     }
@@ -189,37 +155,28 @@
     function convertWord(word) {
       const clean = word.toLowerCase();
 
-      // 1. Exact Dictionary Match
+      // 1. Check 12k Dictionary
       if (dictionary[clean]) return dictionary[clean];
 
-      // Detect word gender (Masculine vs Feminine)
       const gender = getWordGender(clean);
 
       // 2. Suffix Stripping Match
       for (const rule of suffixRules) {
         if (clean.endsWith(rule.cyr) && clean.length > rule.cyr.length) {
           const stem = clean.slice(0, clean.length - rule.cyr.length);
-          
           let stemHudum = dictionary[stem];
 
-          // Soft-Sign Recovery: e.g. "сургуули" -> "сургууль"
           if (!stemHudum && stem.endsWith("и")) {
             const softStem = stem.slice(0, -1) + "ь";
-            if (dictionary[softStem]) {
-              stemHudum = dictionary[softStem];
-            }
+            if (dictionary[softStem]) stemHudum = dictionary[softStem];
           }
 
-          // Character fallback with gender logic if stem is not in dictionary
-          if (!stemHudum) {
-            stemHudum = convertByChar(stem, gender);
-          }
-
+          if (!stemHudum) stemHudum = convertByChar(stem, gender);
           return stemHudum + rule.hudum;
         }
       }
 
-      // 3. Fallback Character Matching with Gender Context
+      // 3. Character Fallback
       return convertByChar(clean, gender);
     }
 
@@ -249,11 +206,7 @@
     downloadBtn.addEventListener('click', () => {
       if (!output.innerText.trim()) return;
       downloadBtn.innerText = "Generating...";
-
-      html2canvas(output, {
-        backgroundColor: '#f0fdf4',
-        scale: 2
-      }).then(canvas => {
+      html2canvas(output, { backgroundColor: '#f0fdf4', scale: 2 }).then(canvas => {
         const link = document.createElement('a');
         link.download = 'mongolian-script.png';
         link.href = canvas.toDataURL('image/png');
@@ -265,8 +218,5 @@
       });
     });
   </script>
-
-</body>
-</html>
 </body>
 </html>
